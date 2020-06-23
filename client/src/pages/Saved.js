@@ -1,33 +1,59 @@
 import React, { Component } from "react";
 import Jumbotron from "../components/Jumbotron";
 import Card from "../components/Card";
+import Form from "../components/Form";
 import Book from "../components/Book";
 import Footer from "../components/Footer";
 import API from "../utils/API";
 import { Col, Row, Container } from "../components/Grid";
 import { List } from "../components/List";
 
-class Saved extends Component {
+class Home extends Component {
   state = {
-    books: []
+    books: [],
+    q: "",
+    message: "Search For A Book To Begin!"
   };
 
-  componentDidMount() {
-    this.getSavedBooks();
-  }
+  handleInputChange = event => {
+    const { name, value } = event.target;
+    this.setState({
+      [name]: value
+    });
+  };
 
-  getSavedBooks = () => {
-    API.getSavedBooks()
+  getBooks = () => {
+    API.getBooks(this.state.q)
       .then(res =>
         this.setState({
           books: res.data
         })
       )
-      .catch(err => console.log(err));
+      .catch(() =>
+        this.setState({
+          books: [],
+          message: "No New Books Found, Try a Different Query"
+        })
+      );
   };
 
-  handleBookDelete = id => {
-    API.deleteBook(id).then(res => this.getSavedBooks());
+  handleFormSubmit = event => {
+    event.preventDefault();
+    this.getBooks();
+  };
+
+  handleBookSave = id => {
+    const book = this.state.books.find(book => book.id === id);
+
+    API.saveBook({
+      googleId: book.id,
+      title: book.volumeInfo.title,
+      subtitle: book.volumeInfo.subtitle,
+      link: book.volumeInfo.infoLink,
+      authors: book.volumeInfo.authors,
+      description: book.volumeInfo.description,
+      image: book.volumeInfo.imageLinks.thumbnail
+    }).then(() => this.getBooks());
   };
 
   render() {
@@ -42,34 +68,43 @@ class Saved extends Component {
               <h2 className="text-center">Search for and Save Books of Interest.</h2>
             </Jumbotron>
           </Col>
+          <Col size="md-12">
+            <Card title="Book Search" icon="far fa-book">
+              <Form
+                handleInputChange={this.handleInputChange}
+                handleFormSubmit={this.handleFormSubmit}
+                q={this.state.q}
+              />
+            </Card>
+          </Col>
         </Row>
         <Row>
           <Col size="md-12">
-            <Card title="Saved Books" icon="download">
+            <Card title="Results">
               {this.state.books.length ? (
                 <List>
                   {this.state.books.map(book => (
                     <Book
-                      key={book._id}
-                      title={book.title}
-                      subtitle={book.subtitle}
-                      link={book.link}
-                      authors={book.authors.join(", ")}
-                      description={book.description}
-                      image={book.image}
+                      key={book.id}
+                      title={book.volumeInfo.title}
+                      subtitle={book.volumeInfo.subtitle}
+                      link={book.volumeInfo.infoLink}
+                      authors={book.volumeInfo.authors.join(", ")}
+                      description={book.volumeInfo.description}
+                      image={book.volumeInfo.imageLinks.thumbnail}
                       Button={() => (
                         <button
-                          onClick={() => this.handleBookDelete(book._id)}
-                          className="btn btn-danger ml-2"
+                          onClick={() => this.handleBookSave(book.id)}
+                          className="btn btn-primary ml-2"
                         >
-                          Delete
+                          Save
                         </button>
                       )}
                     />
                   ))}
                 </List>
               ) : (
-                <h2 className="text-center">No Saved Books</h2>
+                <h2 className="text-center">{this.state.message}</h2>
               )}
             </Card>
           </Col>
@@ -80,4 +115,4 @@ class Saved extends Component {
   }
 }
 
-export default Saved;
+export default Home;
